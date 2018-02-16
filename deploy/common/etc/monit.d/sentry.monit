@@ -1,0 +1,4 @@
+check host sentry with address localhost
+  start program = "/usr/bin/systemctl start sentry-web.service"
+  stop program = "/usr/bin/systemctl stop sentry-web.service"
+  if failed host localhost port 9000 protocol HTTP request / with timeout 10 seconds then restart
