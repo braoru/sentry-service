@@ -1,7 +1,6 @@
 FROM cloudtrust-baseimage:f27
 
-ARG branch
-
+ARG sentry_service_git_tag
 WORKDIR /cloudtrust
 
 ####################
@@ -21,7 +20,7 @@ RUN dnf -y update && \
     dnf clean all && \
 	git clone git@github.com:cloudtrust/sentry-service.git && \
 	cd /cloudtrust/sentry-service && \
-    git checkout ${branch}
+    git checkout ${sentry_service_git_tag}
 
 # Sane defaults for pip
 ENV PIP_NO_CACHE_DIR off
