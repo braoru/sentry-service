@@ -1,7 +1,10 @@
 FROM cloudtrust-baseimage:f27
 
 ARG sentry_service_git_tag
-WORKDIR /cloudtrust
+ARG config_env
+ARG config_git_tag
+ARG config_repo
+
 
 ####################
 # Sentry
@@ -14,13 +17,19 @@ RUN groupadd -r sentry && useradd -r -m -g sentry sentry
 # Intall monit, nginx, python, pip and Sentry dependencies
 # redhat-rpm-config fix issue https://developer.fedoraproject.org/tech/languages/ruby/gems-installation.html
 RUN dnf -y update && \
-    dnf clean all && \
     dnf -y install monit nginx haproxy redis python27 python-pip python-setuptools python2-devel wget gcc gcc-c++ gpg postgresql-devel postgresql-contrib \
     libffi-devel libjpeg-devel postgresql-libs libxml2-devel libxslt-devel libyaml-devel redhat-rpm-config ncurses-compat-libs dpkg make && \
-    dnf clean all && \
-	git clone git@github.com:cloudtrust/sentry-service.git && \
-	cd /cloudtrust/sentry-service && \
-    git checkout ${sentry_service_git_tag}
+    dnf clean all
+
+
+WORKDIR /cloudtrust
+RUN git clone git@github.com:cloudtrust/sentry-service.git && \    
+    git clone ${config_repo} ./config
+
+WORKDIR /cloudtrust/sentry-service
+RUN git checkout ${sentry_service_git_tag}
+WORKDIR /cloudtrust/config
+RUN git checkout ${config_git_tag}
 
 # Sane defaults for pip
 ENV PIP_NO_CACHE_DIR off
@@ -102,8 +111,17 @@ RUN cd /cloudtrust/sentry-service && \
     install -v -m0744 -d /run/haproxy && \
     install -v -m0755 deploy/common/etc/haproxy/* /etc/haproxy && \
     install -v -o root -g root -m 644 -d /etc/systemd/system/haproxy.service.d && \
-    install -v -o root -g root -m 644 deploy/common/etc/systemd/system/haproxy.service.d/limit.conf /etc/systemd/system/haproxy.service.d/limit.conf && \
-# enable services
+    install -v -o root -g root -m 644 deploy/common/etc/systemd/system/haproxy.service.d/limit.conf /etc/systemd/system/haproxy.service.d/limit.conf 
+
+
+WORKDIR /cloudtrust/config
+RUN install -v -m755 -o root -g root deploy/${config_env}/etc/sentry/sentry.conf.py /etc/sentry/sentry.conf.py &&  \
+    install -v -m755 -o root -g root deploy/${config_env}/etc/sentry/config.yml /etc/sentry/config.yml &&  \
+    install -v -m755 -o root -g root deploy/${config_env}/etc/sentry/sentry.json /etc/sentry/sentry.json &&  \
+    install -v -m755 -o root -g root deploy/${config_env}/etc/systemd/system/sentry_init.service /etc/systemd/system/sentry_init.service 
+    
+
+RUN systemctl enable sentry_init && \
     systemctl enable nginx.service && \
     systemctl enable redis.service && \
     systemctl enable sentry-web.service && \
@@ -113,3 +131,4 @@ RUN cd /cloudtrust/sentry-service && \
 VOLUME ["/var/lib/sentry/files"]
 
 EXPOSE 80
+
