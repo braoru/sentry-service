@@ -58,7 +58,6 @@ RUN cd /cloudtrust/sentry-service && \
 # sentry setup
     install -v -m0755 -d /etc/sentry && \
     install -v -m0744 -d /run/sentry && \
-    install -v -m0755 deploy/common/etc/sentry/* /etc/sentry && \
     install -v -o root -g root -m 644 -d /etc/systemd/system/sentry.service.d && \
     install -v -o root -g root -m 644 deploy/common/etc/systemd/system/sentry-web.service /etc/systemd/system/sentry-web.service && \
     install -v -o root -g root -m 644 deploy/common/etc/systemd/system/sentry-cron.service /etc/systemd/system/sentry-cron.service && \
