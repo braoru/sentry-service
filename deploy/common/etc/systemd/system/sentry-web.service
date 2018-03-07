@@ -9,7 +9,7 @@ Type=simple
 User=sentry
 Group=sentry
 Environment=SENTRY_CONF=/etc/sentry
-ExecStart=/bin/sentry run web
+ExecStart=/opt/sentry/bin/sentry run web
 
 [Install]
 WantedBy=multi-user.target

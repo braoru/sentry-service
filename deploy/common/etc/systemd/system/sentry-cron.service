@@ -7,7 +7,7 @@ Type=simple
 User=sentry
 Group=sentry
 Environment=SENTRY_CONF=/etc/sentry
-ExecStart=/bin/sentry run cron
+ExecStart=/opt/sentry/bin/sentry run cron
 
 [Install]
 WantedBy=multi-user.target
