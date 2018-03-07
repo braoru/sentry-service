@@ -1,7 +1,8 @@
 FROM cloudtrust-baseimage:f27
 
 ARG sentry_service_git_tag
-ARG config_env
+ARG sentry_wheel_release
+ARG sentry_wheel_version
 ARG config_git_tag
 ARG config_repo
 
@@ -9,15 +10,12 @@ ARG config_repo
 ####################
 # Sentry
 ####################
-# From https://github.com/getsentry/docker-sentry/blob/master/8.20/Dockerfile
 
 # add our user and group first to make sure their IDs get assigned consistently
 RUN groupadd -r sentry && useradd -r -m -g sentry sentry
 
-# Intall monit, nginx, python, pip and Sentry dependencies
-# redhat-rpm-config fix issue https://developer.fedoraproject.org/tech/languages/ruby/gems-installation.html
-RUN dnf -y update && \
-    dnf -y install monit nginx haproxy redis python27 python-pip python-setuptools python2-devel wget gcc gcc-c++ gpg postgresql-devel postgresql-contrib \
+# Install nginx, python, pip and Sentry dependencies
+RUN dnf -y install nginx haproxy redis python27 python-pip python-setuptools python2-devel wget gcc gcc-c++ gpg postgresql-devel postgresql-contrib python2-virtualenv \
     libffi-devel libjpeg-devel postgresql-libs libxml2-devel libxslt-devel libyaml-devel redhat-rpm-config ncurses-compat-libs dpkg make && \
     dnf clean all
 
@@ -35,56 +33,16 @@ RUN git checkout ${config_git_tag}
 ENV PIP_NO_CACHE_DIR off
 ENV PIP_DISABLE_PIP_VERSION_CHECK on
 
-# grab gosu for easy step-down from root
-ENV GOSU_VERSION 1.10
-RUN set -x && \
-    wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture)" && \
-    wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture).asc" && \
-    export GNUPGHOME="$(mktemp -d)" && \
-    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 && \
-    gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu && \
-    rm -r "$GNUPGHOME" /usr/local/bin/gosu.asc && \
-    chmod +x /usr/local/bin/gosu && \
-    gosu nobody true
+##
+## Sentry installation
+##
 
-# grab tini for signal processing and zombie killing
-ENV TINI_VERSION v0.14.0
-RUN set -x && \
-    wget -O /usr/local/bin/tini "https://github.com/krallin/tini/releases/download/$TINI_VERSION/tini" && \
-    wget -O /usr/local/bin/tini.asc "https://github.com/krallin/tini/releases/download/$TINI_VERSION/tini.asc" && \
-    export GNUPGHOME="$(mktemp -d)" && \
-    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys 6380DC428747F6C393FEACA59A84159D7001A4E5 && \
-    gpg --batch --verify /usr/local/bin/tini.asc /usr/local/bin/tini && \
-    rm -r "$GNUPGHOME" /usr/local/bin/tini.asc && \
-    chmod +x /usr/local/bin/tini && \
-    tini -h
-
-# Support for RabbitMQ
-RUN set -x && \
-    pip install librabbitmq==1.5.1 && \
-    python -c 'import librabbitmq'
-
-# Install Sentry    
-ENV SENTRY_VERSION 8.21.0
-
-RUN mkdir -p /usr/src/sentry && \
-    wget -O /usr/src/sentry/sentry-${SENTRY_VERSION}-py27-none-any.whl "https://github.com/getsentry/sentry/releases/download/${SENTRY_VERSION}/sentry-${SENTRY_VERSION}-py27-none-any.whl" && \
-    wget -O /usr/src/sentry/sentry-${SENTRY_VERSION}-py27-none-any.whl.asc "https://github.com/getsentry/sentry/releases/download/${SENTRY_VERSION}/sentry-${SENTRY_VERSION}-py27-none-any.whl.asc" && \
-    wget -O /usr/src/sentry/sentry_plugins-${SENTRY_VERSION}-py2.py3-none-any.whl "https://github.com/getsentry/sentry/releases/download/${SENTRY_VERSION}/sentry_plugins-${SENTRY_VERSION}-py2.py3-none-any.whl" && \
-    wget -O /usr/src/sentry/sentry_plugins-${SENTRY_VERSION}-py2.py3-none-any.whl.asc "https://github.com/getsentry/sentry/releases/download/${SENTRY_VERSION}/sentry_plugins-${SENTRY_VERSION}-py2.py3-none-any.whl.asc" && \
-	export GNUPGHOME="$(mktemp -d)" && \
-    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys D8749766A66DD714236A932C3B2D400CE5BBCA60 && \
-    gpg --batch --verify /usr/src/sentry/sentry-${SENTRY_VERSION}-py27-none-any.whl.asc /usr/src/sentry/sentry-${SENTRY_VERSION}-py27-none-any.whl && \
-    gpg --batch --verify /usr/src/sentry/sentry_plugins-${SENTRY_VERSION}-py2.py3-none-any.whl.asc /usr/src/sentry/sentry_plugins-${SENTRY_VERSION}-py2.py3-none-any.whl && \
-    pip install /usr/src/sentry/sentry-${SENTRY_VERSION}-py27-none-any.whl /usr/src/sentry/sentry_plugins-${SENTRY_VERSION}-py2.py3-none-any.whl && \
-    sentry --help && \
-    sentry plugins list && \
-    rm -r "$GNUPGHOME" /usr/src/sentry
-
-ENV SENTRY_CONF=/etc/sentry \
-    SENTRY_FILESTORE_DIR=/var/lib/sentry/files
-
-RUN mkdir -p $SENTRY_CONF && mkdir -p $SENTRY_FILESTORE_DIR
+WORKDIR /opt/sentry
+RUN wget -O ./sentry-${sentry_wheel_version}-py27-none-any.whl ${sentry_wheel_release} && \
+    virtualenv-2.7 . && \
+    . bin/activate && \
+    pip install sentry-${sentry_wheel_version}-py27-none-any.whl && \
+    sentry --help
 
 # Configure Sentry, nginx, monit
 RUN cd /cloudtrust/sentry-service && \
@@ -115,10 +73,11 @@ RUN cd /cloudtrust/sentry-service && \
 
 
 WORKDIR /cloudtrust/config
-RUN install -v -m755 -o root -g root deploy/${config_env}/etc/sentry/sentry.conf.py /etc/sentry/sentry.conf.py &&  \
-    install -v -m755 -o root -g root deploy/${config_env}/etc/sentry/config.yml /etc/sentry/config.yml &&  \
-    install -v -m755 -o root -g root deploy/${config_env}/etc/sentry/sentry.json /etc/sentry/sentry.json &&  \
-    install -v -m755 -o root -g root deploy/${config_env}/etc/systemd/system/sentry_init.service /etc/systemd/system/sentry_init.service 
+RUN install -v -d -m0755 -o sentry -g sentry /etc/sentry && \
+    install -v -m755 -o root -g root deploy/etc/sentry/sentry.conf.py /etc/sentry/sentry.conf.py &&  \
+    install -v -m755 -o root -g root deploy/etc/sentry/config.yml /etc/sentry/config.yml &&  \
+    install -v -m755 -o root -g root deploy/etc/sentry/sentry.json /etc/sentry/sentry.json &&  \
+    install -v -m755 -o root -g root deploy/etc/systemd/system/sentry_init.service /etc/systemd/system/sentry_init.service 
     
 
 RUN systemctl enable sentry_init && \
@@ -127,8 +86,6 @@ RUN systemctl enable sentry_init && \
     systemctl enable sentry-web.service && \
     systemctl enable haproxy.service && \
     systemctl enable monit.service
-
-VOLUME ["/var/lib/sentry/files"]
 
 EXPOSE 80
 
