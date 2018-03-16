@@ -1,0 +1,4 @@
+check process haproxy with pidfile /var/run/haproxy.pid
+  start program = "/usr/bin/systemctl start haproxy.service"
+  stop program  = "/usr/bin/systemctl stop haproxy.service"
+  if failed port 65530 protocol HTTP request /ping with timeout 10 seconds then restart

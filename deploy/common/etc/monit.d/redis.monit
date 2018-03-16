@@ -1,0 +1,4 @@
+check process redis-server matching "redis-server"
+  start program = "/usr/bin/systemctl start redis.service"
+  stop program  = "/usr/bin/systemctl stop redis.service"
+  if failed host localhost port 6379 with timeout 10 seconds then restart
