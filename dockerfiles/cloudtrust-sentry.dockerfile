@@ -15,7 +15,8 @@ ARG config_repo
 RUN groupadd -r sentry && useradd -r -m -g sentry sentry
 
 # Install nginx, python, pip and Sentry dependencies
-RUN dnf -y install nginx haproxy redis python27 python-pip python-setuptools python2-devel wget gcc gcc-c++ gpg postgresql-devel postgresql-contrib python2-virtualenv \
+RUN dnf update -y && \
+    dnf -y install nginx haproxy redis python27 python-pip python-setuptools python2-devel wget gcc gcc-c++ gpg postgresql-devel postgresql-contrib python2-virtualenv \
     libffi-devel libjpeg-devel postgresql-libs libxml2-devel libxslt-devel libyaml-devel redhat-rpm-config ncurses-compat-libs dpkg make && \
     dnf clean all
 
